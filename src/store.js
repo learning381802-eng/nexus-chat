@@ -103,6 +103,27 @@ export const useAppStore = create((set, get) => ({
   activeSettingsTab: 'my-account',
   setActiveSettingsTab: (tab) => set({ activeSettingsTab: tab }),
 
+  // Theme
+  theme: 'dark',
+  setTheme: (theme) => {
+    document.documentElement.setAttribute('data-theme', theme)
+    set({ theme })
+  },
+
+  // Profile popup
+  profilePopup: null,
+  setProfilePopup: (user) => set({ profilePopup: user }),
+
+  // Server-wide search
+  serverSearchOpen: false,
+  setServerSearchOpen: (open) => set({ serverSearchOpen: open }),
+
+  // Threads
+  threads: {},
+  activeThreadId: null,
+  setThreads: (channelId, threads) => set(state => ({ threads: { ...state.threads, [channelId]: threads } })),
+  setActiveThread: (threadId) => set({ activeThreadId: threadId }),
+
   // Roles
   roles: {},
   setRoles: (serverId, roles) => set(state => ({ roles: { ...state.roles, [serverId]: roles } })),

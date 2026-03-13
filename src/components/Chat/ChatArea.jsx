@@ -3,17 +3,20 @@ import { useParams } from 'react-router-dom'
 import { useAppStore, useAuthStore } from '../../store'
 import { useSocket } from '../../context/SocketContext'
 import { api } from '../../utils/api'
-import { Hash, AtSign, Pin, Search, Bell, Users, Inbox, HelpCircle } from 'lucide-react'
+import { Hash, Pin, Search, Users, Inbox } from 'lucide-react'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
 import PinsModal from '../Modals/PinsModal'
 import SearchPanel from './SearchPanel'
+import ServerSearch from './ServerSearch'
 import Tooltip from '../UI/Tooltip'
+import ThemeToggle from '../UI/ThemeToggle'
+import UserProfilePopup from '../UI/UserProfilePopup'
 
 export default function ChatArea() {
   const { serverId, channelId } = useParams()
   const { user } = useAuthStore()
-  const { channels, messages, setMessages, markRead, toggleRightSidebar } = useAppStore()
+  const { channels, messages, setMessages, markRead, toggleRightSidebar, serverSearchOpen, setServerSearchOpen } = useAppStore()
   const { joinChannel, leaveChannel } = useSocket()
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -78,8 +81,9 @@ export default function ChatArea() {
         <div className="ml-auto flex items-center gap-1">
           <Tooltip content="Pins"><button onClick={() => setShowPins(true)} className="p-1.5 rounded transition-colors hover:text-white" style={{ color: 'var(--interactive-normal)' }}><Pin size={20} /></button></Tooltip>
           <Tooltip content="Member List"><button onClick={toggleRightSidebar} className="p-1.5 rounded transition-colors hover:text-white" style={{ color: 'var(--interactive-normal)' }}><Users size={20} /></button></Tooltip>
-          <Tooltip content="Search"><button onClick={() => setShowSearch(!showSearch)} className="p-1.5 rounded transition-colors hover:text-white" style={{ color: 'var(--interactive-normal)' }}><Search size={20} /></button></Tooltip>
-          <Tooltip content="Inbox"><button className="p-1.5 rounded transition-colors hover:text-white" style={{ color: 'var(--interactive-normal)' }}><Inbox size={20} /></button></Tooltip>
+          <Tooltip content="Search Messages"><button onClick={() => setShowSearch(!showSearch)} className="p-1.5 rounded transition-colors hover:text-white" style={{ color: 'var(--interactive-normal)' }}><Search size={20} /></button></Tooltip>
+          <Tooltip content="Server Search"><button onClick={() => setServerSearchOpen(true)} className="p-1.5 rounded transition-colors hover:text-white" style={{ color: 'var(--interactive-normal)' }}><Inbox size={20} /></button></Tooltip>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -100,6 +104,8 @@ export default function ChatArea() {
       </div>
 
       {showPins && <PinsModal channelId={channelId} onClose={() => setShowPins(false)} />}
+      {serverSearchOpen && <ServerSearch />}
+      <UserProfilePopup />
     </div>
   )
 }

@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAppStore } from '../../store'
 import { api } from '../../utils/api'
-import { Plus, Compass, MessageCircle } from 'lucide-react'
+import { Plus, Compass, MessageSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CreateServerModal from '../Modals/CreateServerModal'
 import JoinServerModal from '../Modals/JoinServerModal'
 import Tooltip from '../UI/Tooltip'
+
+const AVATAR_COLORS = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6']
 
 export default function ServerList() {
   const navigate = useNavigate()
@@ -35,61 +37,57 @@ export default function ServerList() {
   }
 
   return (
-    <div className="flex flex-col items-center py-3 gap-2 overflow-y-auto scrollbar-thin" style={{ width: 72, background: 'var(--bg-primary)', minWidth: 72 }}>
-      {/* DMs button */}
+    <div className="flex flex-col items-center py-3 gap-2 overflow-y-auto scrollbar-thin"
+      style={{ width: 72, minWidth: 72, background: 'var(--bg-primary)', borderRight: '1px solid var(--border-subtle)' }}>
+      
+      {/* DMs */}
       <Tooltip content="Direct Messages" placement="right">
         <button
           onClick={() => { setActiveServer(null); navigate('/channels/@me') }}
-          className="server-icon relative group"
-          style={{ background: serverId === '@me' || !serverId ? '#5865F2' : undefined, borderRadius: serverId === '@me' || !serverId ? 16 : undefined }}
+          className={`server-icon ${(!serverId || serverId === '@me') ? 'active' : ''}`}
         >
-          <MessageCircle size={24} />
+          <MessageSquare size={22} strokeWidth={1.8} />
         </button>
       </Tooltip>
 
-      <div className="w-8 h-px" style={{ background: 'var(--bg-accent)' }} />
+      <div className="w-8 h-px mx-auto" style={{ background: 'var(--border-subtle)' }} />
 
-      {/* Server icons */}
-      {servers.map(server => (
-        <Tooltip key={server.id} content={server.name} placement="right">
-          <button
-            onClick={() => handleServerClick(server)}
-            className="server-icon relative"
-            style={{
-              background: activeServerId === server.id ? '#5865F2' : undefined,
-              borderRadius: activeServerId === server.id ? 16 : undefined
-            }}
-          >
-            {server.icon ? (
-              <img src={server.icon} alt={server.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <span className="font-bold text-sm">{server.name.slice(0, 2).toUpperCase()}</span>
-            )}
-            {/* Unread indicator */}
-            <span className="absolute left-0 w-1 h-4 rounded-r-full" style={{ background: '#DBDEE1', display: 'none' }} />
-          </button>
-        </Tooltip>
-      ))}
+      {/* Servers */}
+      {servers.map((server, i) => {
+        const color = AVATAR_COLORS[i % AVATAR_COLORS.length]
+        const isActive = activeServerId === server.id
+        return (
+          <Tooltip key={server.id} content={server.name} placement="right">
+            <button onClick={() => handleServerClick(server)}
+              className={`server-icon relative ${isActive ? 'active' : ''}`}
+              style={{ background: isActive ? `linear-gradient(135deg, ${color}, ${color}bb)` : undefined }}>
+              {server.icon ? (
+                <img src={server.icon} alt={server.name} className="w-full h-full object-cover" style={{ borderRadius: 'inherit' }} />
+              ) : (
+                <span className="font-bold text-sm">{server.name.slice(0, 2).toUpperCase()}</span>
+              )}
+              {isActive && (
+                <span className="absolute -left-1 w-1 h-8 rounded-r-full" style={{ background: 'white' }} />
+              )}
+            </button>
+          </Tooltip>
+        )
+      })}
+
+      <div className="w-8 h-px mx-auto" style={{ background: 'var(--border-subtle)' }} />
 
       {/* Add server */}
       <Tooltip content="Add a Server" placement="right">
-        <button
-          onClick={() => setShowCreate(true)}
-          className="server-icon"
-          style={{ color: '#57F287', background: 'rgba(87, 242, 135, 0.1)' }}
-        >
-          <Plus size={24} />
+        <button onClick={() => setShowCreate(true)} className="server-icon"
+          style={{ color: 'var(--text-positive)', background: 'rgba(52,211,153,0.1)' }}>
+          <Plus size={22} strokeWidth={2.5} />
         </button>
       </Tooltip>
 
-      {/* Discover servers */}
-      <Tooltip content="Explore Public Servers" placement="right">
-        <button
-          onClick={() => setShowJoin(true)}
-          className="server-icon"
-          style={{ color: '#00AFF4', background: 'rgba(0, 175, 244, 0.1)' }}
-        >
-          <Compass size={24} />
+      <Tooltip content="Explore Servers" placement="right">
+        <button onClick={() => setShowJoin(true)} className="server-icon"
+          style={{ color: 'var(--text-link)', background: 'rgba(129,140,248,0.1)' }}>
+          <Compass size={20} strokeWidth={1.8} />
         </button>
       </Tooltip>
 
