@@ -24,7 +24,6 @@ export const api = {
   register: (body) => request('POST', '/auth/register', body),
   login: (body) => request('POST', '/auth/login', body),
   me: () => request('GET', '/auth/me'),
-  googleAuth: (credential) => request('POST', '/auth/google', { credential }),
 
   // Users
   updateMe: (body) => request('PATCH', '/users/@me', body),
