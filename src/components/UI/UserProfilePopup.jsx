@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore, useAuthStore } from '../../store'
-import { MessageCircle, UserMinus, X } from 'lucide-react'
+import { MessageCircle, Flag } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import ReportModal from '../Modals/ReportModal'
 
 const STATUS_COLORS = {
   online: '#23A559',
@@ -20,8 +21,9 @@ const STATUS_LABELS = {
 export default function UserProfilePopup() {
   const navigate = useNavigate()
   const { user: currentUser } = useAuthStore()
-  const { profilePopup, setProfilePopup, setActiveDm, friends, removeFriend } = useAppStore()
+  const { profilePopup, setProfilePopup, setActiveDm, friends } = useAppStore()
   const ref = useRef(null)
+  const [showReport, setShowReport] = useState(false)
 
   useEffect(() => {
     const handler = (e) => {
@@ -57,14 +59,14 @@ export default function UserProfilePopup() {
       <div className="fixed inset-0 z-40" onClick={() => setProfilePopup(null)} />
       <div
         ref={ref}
-        className="fixed z-50 rounded-lg overflow-hidden shadow-2xl"
+        className="fixed z-50 rounded-xl overflow-hidden shadow-2xl"
         style={{
           background: 'var(--bg-secondary)',
           width: 300,
           top: profilePopup._popupY || '50%',
           left: profilePopup._popupX || '50%',
           transform: profilePopup._popupY ? 'none' : 'translate(-50%, -50%)',
-          border: '1px solid rgba(255,255,255,0.06)'
+          border: '1px solid var(--border-subtle)'
         }}
       >
         {/* Banner */}
@@ -142,8 +144,8 @@ export default function UserProfilePopup() {
             <div className="mt-4 flex flex-col gap-2">
               {!isFriend && (
                 <button
-                  className="w-full py-2 rounded text-sm font-medium text-white transition-colors"
-                  style={{ background: '#5865F2' }}
+                  className="w-full py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                  style={{ background: 'var(--brand-color)' }}
                 >
                   Send Friend Request
                 </button>
@@ -151,16 +153,26 @@ export default function UserProfilePopup() {
               {isFriend && (
                 <button
                   onClick={handleDM}
-                  className="w-full py-2 rounded text-sm font-medium text-white transition-colors"
-                  style={{ background: '#5865F2' }}
+                  className="w-full py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                  style={{ background: 'var(--brand-color)' }}
                 >
                   Send Message
                 </button>
               )}
+              <button
+                onClick={() => setShowReport(true)}
+                className="w-full py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--text-danger)', border: '1px solid rgba(248,113,113,0.2)' }}
+              >
+                <Flag size={13} /> Report User
+              </button>
             </div>
           )}
         </div>
       </div>
+      {showReport && (
+        <ReportModal target={user} type="user" onClose={() => setShowReport(false)} />
+      )}
     </>
   )
 }

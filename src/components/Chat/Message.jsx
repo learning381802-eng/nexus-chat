@@ -2,9 +2,10 @@ import { useState, useRef } from 'react'
 import { format } from 'date-fns'
 import { useAuthStore, useAppStore } from '../../store'
 import { api } from '../../utils/api'
-import { Edit2, Trash2, Pin, Smile, Check, Bookmark, BookmarkCheck } from 'lucide-react'
+import { Edit2, Trash2, Pin, Smile, Check, Bookmark, BookmarkCheck, Flag } from 'lucide-react'
 import toast from 'react-hot-toast'
 import EmojiPicker from 'emoji-picker-react'
+import ReportModal from '../Modals/ReportModal'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢']
 const AVATAR_COLORS = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6']
@@ -50,6 +51,7 @@ export default function Message({ message, isGroupStart, isOwn, channelId }) {
   const [editContent, setEditContent] = useState(message.content)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showContextMenu, setShowContextMenu] = useState(null)
+  const [showReport, setShowReport] = useState(false)
 
   const handleEdit = async () => {
     if (!editContent.trim()) return
@@ -226,6 +228,13 @@ export default function Message({ message, isGroupStart, isOwn, channelId }) {
             style={{ color: 'var(--interactive-normal)' }}>
             <Smile size={15} />
           </button>
+          {!isOwn && (
+            <button onClick={() => setShowReport(true)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500 hover:bg-opacity-20"
+              style={{ color: 'var(--text-danger)' }} title="Report Message">
+              <Flag size={15} />
+            </button>
+          )}
           <button onClick={toggleBookmark}
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white hover:bg-opacity-10"
             style={{ color: isBookmarked ? '#fbbf24' : 'var(--interactive-normal)' }}>
@@ -273,11 +282,25 @@ export default function Message({ message, isGroupStart, isOwn, channelId }) {
               <Pin size={14} /> Pin Message
             </div>
             <div className="h-px my-1.5" style={{ background: 'var(--border-subtle)' }} />
+            {!isOwn && (
+              <div className="context-menu-item danger" onClick={() => { setShowReport(true); setShowContextMenu(null) }}>
+                <Flag size={14} /> Report Message
+              </div>
+            )}
             <div className="context-menu-item danger" onClick={() => { handleDelete(); setShowContextMenu(null) }}>
               <Trash2 size={14} /> Delete Message
             </div>
           </div>
         </>
+      )}
+
+      {/* Report modal */}
+      {showReport && (
+        <ReportModal
+          target={{ ...message, author: message.author }}
+          type="message"
+          onClose={() => setShowReport(false)}
+        />
       )}
     </div>
   )

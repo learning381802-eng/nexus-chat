@@ -118,6 +118,14 @@ export const useAppStore = create((set, get) => ({
   serverSearchOpen: false,
   setServerSearchOpen: (open) => set({ serverSearchOpen: open }),
 
+  // Reports
+  reports: [],
+  addReport: (report) => set(state => ({ reports: [report, ...state.reports] })),
+  updateReport: (reportId, updates) => set(state => ({
+    reports: state.reports.map(r => r.id === reportId ? { ...r, ...updates } : r)
+  })),
+  removeReport: (reportId) => set(state => ({ reports: state.reports.filter(r => r.id !== reportId) })),
+
   // Server emoji
   serverEmoji: {},
   addServerEmoji: (serverId, emoji) => set(state => ({

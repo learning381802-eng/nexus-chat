@@ -9,6 +9,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,6 +23,8 @@ app.use('/uploads', express.static('uploads'));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nexus_secret_key_change_in_production';
 const PORT = process.env.PORT || 3001;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 // ── In-memory data store (replace with DB in production) ──────────────────────
 const db = {
@@ -99,6 +102,56 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   if (!user) return res.status(404).json({ error: 'User not found' });
   const { password: _, ...safeUser } = user;
   res.json(safeUser);
+});
+
+// ── Google OAuth ───────────────────────────────────────────────────────────────
+app.post('/api/auth/google', async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) return res.status(400).json({ error: 'Missing credential' });
+  if (!googleClient) return res.status(503).json({ error: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID in server .env' });
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    // Find existing user by email or googleId
+    let user = db.users.find(u => u.email === email || u.googleId === googleId);
+
+    if (!user) {
+      // Create new user
+      const username = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Math.floor(Math.random() * 999);
+      user = {
+        id: uuidv4(),
+        googleId,
+        username,
+        email,
+        password: null,
+        displayName: name || username,
+        avatar: picture || null,
+        banner: null,
+        bio: '',
+        status: 'online',
+        customStatus: '',
+        createdAt: new Date().toISOString(),
+        discriminator: Math.floor(Math.random() * 9999).toString().padStart(4, '0'),
+      };
+      db.users.push(user);
+    } else {
+      user.status = 'online';
+      if (picture && !user.avatar) user.avatar = picture;
+    }
+
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    const { password: _, ...safeUser } = user;
+    res.json({ token, user: safeUser });
+  } catch (err) {
+    console.error('Google auth error:', err);
+    res.status(401).json({ error: 'Invalid Google credential' });
+  }
 });
 
 // ── User routes ────────────────────────────────────────────────────────────────
@@ -531,3 +584,219 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => console.log(`🚀 Nexus Chat server running on port ${PORT}`));
+
+// ── Server Emoji ───────────────────────────────────────────────────────────────
+const EmojiSchema = new mongoose.Schema({
+  id: { type: String, default: uuidv4 },
+  serverId: String,
+  name: String,
+  url: String,
+  createdBy: String,
+  createdAt: { type: String, default: () => new Date().toISOString() }
+})
+const ServerEmoji = mongoose.model('ServerEmoji', EmojiSchema)
+
+app.get('/api/servers/:serverId/emojis', authMiddleware, async (req, res) => {
+  const emojis = await ServerEmoji.find({ serverId: req.params.serverId })
+  res.json(emojis.map(e => { const o = e.toObject(); delete o._id; delete o.__v; return o }))
+})
+
+app.post('/api/servers/:serverId/emojis', authMiddleware, upload.single('image'), async (req, res) => {
+  const { name } = req.body
+  if (!name || !req.file) return res.status(400).json({ error: 'Name and image required' })
+  const emoji = new ServerEmoji({ id: uuidv4(), serverId: req.params.serverId, name: name.toLowerCase().replace(/\s+/g, '_'), url: `/uploads/${req.file.filename}`, createdBy: req.user.id })
+  await emoji.save()
+  const o = emoji.toObject(); delete o._id; delete o.__v
+  io.to(`server:${req.params.serverId}`).emit('emoji:create', o)
+  res.json(o)
+})
+
+app.delete('/api/servers/:serverId/emojis/:emojiId', authMiddleware, async (req, res) => {
+  await ServerEmoji.deleteOne({ id: req.params.emojiId, serverId: req.params.serverId })
+  io.to(`server:${req.params.serverId}`).emit('emoji:delete', { emojiId: req.params.emojiId })
+  res.json({ success: true })
+})
+
+// ── Polls ──────────────────────────────────────────────────────────────────────
+const PollSchema = new mongoose.Schema({
+  id: { type: String, default: uuidv4 },
+  channelId: String,
+  serverId: String,
+  question: String,
+  options: [{ id: String, text: String, votes: [String] }],
+  createdBy: String,
+  endsAt: String,
+  createdAt: { type: String, default: () => new Date().toISOString() }
+})
+const Poll = mongoose.model('Poll', PollSchema)
+
+app.get('/api/channels/:channelId/polls', authMiddleware, async (req, res) => {
+  const polls = await Poll.find({ channelId: req.params.channelId })
+  res.json(polls.map(p => { const o = p.toObject(); delete o._id; delete o.__v; return o }))
+})
+
+app.post('/api/channels/:channelId/polls', authMiddleware, async (req, res) => {
+  const { question, options, duration } = req.body
+  if (!question || !options?.length) return res.status(400).json({ error: 'Question and options required' })
+  const poll = new Poll({
+    id: uuidv4(), channelId: req.params.channelId,
+    question, options: options.map(text => ({ id: uuidv4(), text, votes: [] })),
+    createdBy: req.user.id,
+    endsAt: duration ? new Date(Date.now() + duration * 60000).toISOString() : null
+  })
+  await poll.save()
+  const o = poll.toObject(); delete o._id; delete o.__v
+  // Also create a message for the poll
+  const user = await User.findOne({ id: req.user.id })
+  const msg = new Message({
+    id: uuidv4(), channelId: req.params.channelId,
+    content: `📊 **Poll:** ${question}`,
+    author: safeUser(user),
+    pollId: poll.id
+  })
+  await msg.save()
+  const msgO = msg.toObject(); delete msgO._id; delete msgO.__v
+  io.to(`channel:${req.params.channelId}`).emit('message:create', msgO)
+  io.to(`channel:${req.params.channelId}`).emit('poll:create', o)
+  res.json(o)
+})
+
+app.post('/api/polls/:pollId/vote', authMiddleware, async (req, res) => {
+  const { optionId } = req.body
+  const poll = await Poll.findOne({ id: req.params.pollId })
+  if (!poll) return res.status(404).json({ error: 'Poll not found' })
+  // Remove existing vote
+  poll.options.forEach(opt => { opt.votes = opt.votes.filter(v => v !== req.user.id) })
+  // Add new vote
+  const option = poll.options.find(o => o.id === optionId)
+  if (option) option.votes.push(req.user.id)
+  poll.markModified('options')
+  await poll.save()
+  const o = poll.toObject(); delete o._id; delete o.__v
+  io.to(`channel:${poll.channelId}`).emit('poll:update', o)
+  res.json(o)
+})
+
+// ── Channel permissions (private channels) ────────────────────────────────────
+app.patch('/api/servers/:serverId/channels/:channelId/permissions', authMiddleware, async (req, res) => {
+  const channel = await Channel.findOne({ id: req.params.channelId })
+  if (!channel) return res.status(404).json({ error: 'Not found' })
+  const srv = await ServerModel.findOne({ id: req.params.serverId })
+  if (!srv || srv.ownerId !== req.user.id) return res.status(403).json({ error: 'Forbidden' })
+  channel.isPrivate = req.body.isPrivate ?? false
+  channel.allowedRoles = req.body.allowedRoles || []
+  await channel.save()
+  const o = channel.toObject(); delete o._id; delete o.__v
+  io.to(`server:${req.params.serverId}`).emit('channel:update', o)
+  res.json(o)
+})
+
+// ── Server Rules ───────────────────────────────────────────────────────────────
+const RulesSchema = new mongoose.Schema({
+  serverId: { type: String, unique: true },
+  rules: [{ id: String, title: String, description: String }],
+  updatedAt: String
+})
+const ServerRules = mongoose.model('ServerRules', RulesSchema)
+
+app.get('/api/servers/:serverId/rules', authMiddleware, async (req, res) => {
+  const rules = await ServerRules.findOne({ serverId: req.params.serverId })
+  res.json(rules || { serverId: req.params.serverId, rules: [] })
+})
+
+app.put('/api/servers/:serverId/rules', authMiddleware, async (req, res) => {
+  const srv = await ServerModel.findOne({ id: req.params.serverId })
+  if (!srv || srv.ownerId !== req.user.id) return res.status(403).json({ error: 'Forbidden' })
+  const rules = await ServerRules.findOneAndUpdate(
+    { serverId: req.params.serverId },
+    { rules: req.body.rules, updatedAt: new Date().toISOString() },
+    { upsert: true, new: true }
+  )
+  const o = rules.toObject(); delete o._id; delete o.__v
+  res.json(o)
+})
+
+// ── Role self-assignment ───────────────────────────────────────────────────────
+app.post('/api/servers/:serverId/roles/:roleId/assign', authMiddleware, async (req, res) => {
+  const role = await Role.findOne({ id: req.params.roleId, serverId: req.params.serverId })
+  if (!role) return res.status(404).json({ error: 'Role not found' })
+  if (!role.selfAssignable) return res.status(403).json({ error: 'Role is not self-assignable' })
+  const member = await Member.findOne({ serverId: req.params.serverId, userId: req.user.id })
+  if (!member) return res.status(404).json({ error: 'Not a member' })
+  if (!member.roles.includes(req.params.roleId)) {
+    member.roles.push(req.params.roleId)
+    await member.save()
+  }
+  res.json(member)
+})
+
+app.delete('/api/servers/:serverId/roles/:roleId/assign', authMiddleware, async (req, res) => {
+  const member = await Member.findOne({ serverId: req.params.serverId, userId: req.user.id })
+  if (!member) return res.status(404).json({ error: 'Not a member' })
+  member.roles = member.roles.filter(r => r !== req.params.roleId)
+  await member.save()
+  res.json(member)
+})
+
+// ── Slash commands (bot) ───────────────────────────────────────────────────────
+app.post('/api/channels/:channelId/commands', authMiddleware, async (req, res) => {
+  const { command, args } = req.body
+  const user = await User.findOne({ id: req.user.id })
+  const channel = await Channel.findOne({ id: req.params.channelId })
+
+  const botAuthor = { id: 'nexus-bot', username: 'Nexus', displayName: 'Nexus Bot', discriminator: '0001', isBot: true }
+
+  let responseContent = ''
+
+  switch (command) {
+    case 'help':
+      responseContent = `**Available Commands:**\n\`/help\` — Show this message\n\`/poll [question] | [option1] | [option2]...\` — Create a poll\n\`/remind [minutes] [message]\` — Set a reminder\n\`/roll [max]\` — Roll a dice\n\`/flip\` — Flip a coin\n\`/serverinfo\` — Show server info\n\`/userinfo\` — Show your info`
+      break
+    case 'roll':
+      const max = parseInt(args[0]) || 6
+      const roll = Math.floor(Math.random() * max) + 1
+      responseContent = `🎲 ${user.displayName} rolled a **${roll}** (1-${max})`
+      break
+    case 'flip':
+      responseContent = `🪙 ${user.displayName} flipped a coin — **${Math.random() > 0.5 ? 'Heads' : 'Tails'}**!`
+      break
+    case 'serverinfo':
+      const srv = channel ? await ServerModel.findOne({ id: channel.serverId }) : null
+      const memberCount = channel ? await Member.countDocuments({ serverId: channel.serverId }) : 0
+      responseContent = srv ? `**${srv.name}**\nMembers: ${memberCount}\nCreated: ${new Date(srv.createdAt).toLocaleDateString()}` : 'Server info not found'
+      break
+    case 'userinfo':
+      responseContent = `**${user.displayName}** (@${user.username}#${user.discriminator})\nJoined Nexus: ${new Date(user.createdAt).toLocaleDateString()}`
+      break
+    case 'remind':
+      const minutes = parseInt(args[0]) || 5
+      const reminder = args.slice(1).join(' ') || 'Something!'
+      setTimeout(async () => {
+        const reminderMsg = new Message({
+          id: uuidv4(), channelId: req.params.channelId,
+          content: `⏰ <@${user.username}> Reminder: **${reminder}**`,
+          author: botAuthor
+        })
+        await reminderMsg.save()
+        const o = reminderMsg.toObject(); delete o._id; delete o.__v
+        io.to(`channel:${req.params.channelId}`).emit('message:create', o)
+      }, minutes * 60 * 1000)
+      responseContent = `⏰ I'll remind you about **"${reminder}"** in ${minutes} minute${minutes !== 1 ? 's' : ''}!`
+      break
+    default:
+      responseContent = `Unknown command \`/${command}\`. Type \`/help\` for a list of commands.`
+  }
+
+  if (responseContent) {
+    const msg = new Message({
+      id: uuidv4(), channelId: req.params.channelId,
+      content: responseContent, author: botAuthor
+    })
+    await msg.save()
+    const o = msg.toObject(); delete o._id; delete o.__v
+    io.to(`channel:${req.params.channelId}`).emit('message:create', o)
+    res.json(o)
+  } else {
+    res.json({ success: true })
+  }
+})
