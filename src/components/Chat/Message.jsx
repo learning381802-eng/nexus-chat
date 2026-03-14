@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { format } from 'date-fns'
 import { useAuthStore, useAppStore } from '../../store'
 import { api } from '../../utils/api'
-import { Edit2, Trash2, Pin, Smile, Reply, Check } from 'lucide-react'
+import { Edit2, Trash2, Pin, Smile, Check, Bookmark, BookmarkCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import EmojiPicker from 'emoji-picker-react'
 
@@ -38,7 +38,13 @@ function formatContent(content) {
 
 export default function Message({ message, isGroupStart, isOwn, channelId }) {
   const { user } = useAuthStore()
-  const { updateMessage, removeMessage, setProfilePopup } = useAppStore()
+  const { updateMessage, removeMessage, setProfilePopup, bookmarks = [], addBookmark, removeBookmark } = useAppStore()
+  const isBookmarked = bookmarks.some(b => b.id === message.id)
+
+  const toggleBookmark = () => {
+    if (isBookmarked) { removeBookmark(message.id); toast.success('Bookmark removed') }
+    else { addBookmark({ ...message, channelId }); toast.success('Bookmarked!') }
+  }
   const [hovered, setHovered] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
@@ -219,6 +225,11 @@ export default function Message({ message, isGroupStart, isOwn, channelId }) {
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white hover:bg-opacity-10"
             style={{ color: 'var(--interactive-normal)' }}>
             <Smile size={15} />
+          </button>
+          <button onClick={toggleBookmark}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white hover:bg-opacity-10"
+            style={{ color: isBookmarked ? '#fbbf24' : 'var(--interactive-normal)' }}>
+            {isBookmarked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
           </button>
           <button onClick={handlePin}
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white hover:bg-opacity-10"

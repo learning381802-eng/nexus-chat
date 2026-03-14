@@ -24,7 +24,7 @@ export default function AuthPage({ mode }) {
       navigate('/channels/@me')
       toast.success(isLogin ? 'Welcome back!' : 'Account created!')
     } catch (err) {
-      toast.error(err.message)
+      toast.error(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

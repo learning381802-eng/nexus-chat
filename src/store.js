@@ -118,6 +118,11 @@ export const useAppStore = create((set, get) => ({
   serverSearchOpen: false,
   setServerSearchOpen: (open) => set({ serverSearchOpen: open }),
 
+  // Bookmarks
+  bookmarks: [],
+  addBookmark: (message) => set(state => ({ bookmarks: [...state.bookmarks.filter(b => b.id !== message.id), message] })),
+  removeBookmark: (messageId) => set(state => ({ bookmarks: state.bookmarks.filter(b => b.id !== messageId) })),
+
   // Threads
   threads: {},
   activeThreadId: null,
