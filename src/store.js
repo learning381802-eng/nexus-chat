@@ -118,6 +118,15 @@ export const useAppStore = create((set, get) => ({
   serverSearchOpen: false,
   setServerSearchOpen: (open) => set({ serverSearchOpen: open }),
 
+  // Server emoji
+  serverEmoji: {},
+  addServerEmoji: (serverId, emoji) => set(state => ({
+    serverEmoji: { ...state.serverEmoji, [serverId]: [...(state.serverEmoji[serverId] || []), emoji] }
+  })),
+  removeServerEmoji: (serverId, emojiId) => set(state => ({
+    serverEmoji: { ...state.serverEmoji, [serverId]: (state.serverEmoji[serverId] || []).filter(e => e.id !== emojiId) }
+  })),
+
   // Bookmarks
   bookmarks: [],
   addBookmark: (message) => set(state => ({ bookmarks: [...state.bookmarks.filter(b => b.id !== message.id), message] })),

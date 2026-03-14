@@ -79,4 +79,28 @@ export const api = {
   sendFriendRequest: (body) => request('POST', '/friends/request', body),
   respondFriendRequest: (id, body) => request('PATCH', `/friends/${id}`, body),
   removeFriend: (id) => request('DELETE', `/friends/${id}`),
+
+  // Server Emoji
+  getServerEmojis: (serverId) => request('GET', `/servers/${serverId}/emojis`),
+  createServerEmoji: (serverId, formData) => request('POST', `/servers/${serverId}/emojis`, formData, true),
+  deleteServerEmoji: (serverId, emojiId) => request('DELETE', `/servers/${serverId}/emojis/${emojiId}`),
+
+  // Polls
+  getPolls: (channelId) => request('GET', `/channels/${channelId}/polls`),
+  createPoll: (channelId, body) => request('POST', `/channels/${channelId}/polls`, body),
+  votePoll: (pollId, body) => request('POST', `/polls/${pollId}/vote`, body),
+
+  // Rules
+  getRules: (serverId) => request('GET', `/servers/${serverId}/rules`),
+  updateRules: (serverId, body) => request('PUT', `/servers/${serverId}/rules`, body),
+
+  // Channel permissions
+  updateChannelPermissions: (serverId, channelId, body) => request('PATCH', `/servers/${serverId}/channels/${channelId}/permissions`, body),
+
+  // Role self-assignment
+  assignRole: (serverId, roleId) => request('POST', `/servers/${serverId}/roles/${roleId}/assign`),
+  unassignRole: (serverId, roleId) => request('DELETE', `/servers/${serverId}/roles/${roleId}/assign`),
+
+  // Slash commands
+  runCommand: (channelId, body) => request('POST', `/channels/${channelId}/commands`, body),
 }

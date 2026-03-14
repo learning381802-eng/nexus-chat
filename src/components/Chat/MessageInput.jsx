@@ -6,6 +6,7 @@ import { Plus, Smile, Send, X, Reply } from 'lucide-react'
 import toast from 'react-hot-toast'
 import EmojiPicker from 'emoji-picker-react'
 import MentionAutocomplete from './MentionAutocomplete'
+import SlashCommands from './SlashCommands'
 
 export default function MessageInput({ channelId, channelName, replyTo, onCancelReply }) {
   const { startTyping, stopTyping } = useSocket()
@@ -15,6 +16,7 @@ export default function MessageInput({ channelId, channelName, replyTo, onCancel
   const [files, setFiles] = useState([])
   const [sending, setSending] = useState(false)
   const [mentionQuery, setMentionQuery] = useState(null)
+  const [slashQuery, setSlashQuery] = useState(null)
   const textareaRef = useRef(null)
   const typingTimerRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -38,6 +40,16 @@ export default function MessageInput({ channelId, channelName, replyTo, onCancel
     const textUpToCursor = val.slice(0, cursor)
     const mentionMatch = textUpToCursor.match(/@(\w*)$/)
     setMentionQuery(mentionMatch ? mentionMatch[1] : null)
+
+    // Detect slash command
+    const slashMatch = val.match(/^\/(\w*)$/)
+    setSlashQuery(slashMatch ? slashMatch[1] : null)
+  }
+
+  const handleSlashSelect = (cmd) => {
+    setContent(`/${cmd.name} `)
+    setSlashQuery(null)
+    textareaRef.current?.focus()
   }
 
   const handleMentionSelect = (user) => {
@@ -74,7 +86,40 @@ export default function MessageInput({ channelId, channelName, replyTo, onCancel
     setSending(true)
     stopTyping(channelId)
     setMentionQuery(null)
+    setSlashQuery(null)
     try {
+      // Handle slash commands
+      if (content.trim().startsWith('/')) {
+        const text = content.trim()
+        const spaceIdx = text.indexOf(' ')
+        const cmd = (spaceIdx > 0 ? text.slice(1, spaceIdx) : text.slice(1)).toLowerCase()
+        const args = spaceIdx > 0 ? text.slice(spaceIdx + 1) : ''
+        let msgContent = null
+
+        if (cmd === 'flip') msgContent = `Flipped a coin: **${Math.random() > 0.5 ? 'Heads' : 'Tails'}**!`
+        else if (cmd === 'roll') { const s = parseInt(args) || 6; msgContent = `Rolled a d${s}: **${Math.floor(Math.random() * s) + 1}**` }
+        else if (cmd === 'me') msgContent = `_${args}_`
+        else if (cmd === 'announce') msgContent = `📢 **ANNOUNCEMENT**\n${args}`
+        else if (cmd === 'poll') {
+          const parts = args.split('|').map(s => s.trim())
+          if (parts.length < 3) { toast.error('Usage: /poll Question | Option1 | Option2'); setSending(false); return }
+          msgContent = `📊 **Poll: ${parts[0]}**\n${parts.slice(1).map((o, i) => `${i + 1}. ${o}`).join('\n')}`
+        }
+        else if (cmd === 'help') msgContent = `**Commands:** /flip /roll [n] /me [text] /announce [msg] /poll Q|O1|O2 /remind [time] [msg]`
+        else if (cmd === 'remind') { toast.success(`Reminder set: "${args}"`); setContent(''); setSending(false); return }
+        else if (cmd === 'ban' || cmd === 'kick') { toast.error('Use Server Settings > Members to manage users'); setContent(''); setSending(false); return }
+        else { toast.error(`Unknown command: /${cmd}`); setSending(false); return }
+
+        if (msgContent) {
+          const f = new FormData(); f.append('content', msgContent)
+          await api.sendMessage(channelId, f)
+        }
+        setContent('')
+        textareaRef.current.style.height = 'auto'
+        setSending(false)
+        return
+      }
+
       const formData = new FormData()
       if (content.trim()) formData.append('content', content.trim())
       if (replyTo) formData.append('replyToId', replyTo.id)
@@ -160,6 +205,11 @@ export default function MessageInput({ channelId, channelName, replyTo, onCancel
         onFocus={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)'}
         onBlur={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
       >
+        {/* Slash commands */}
+        {slashQuery !== null && (
+          <SlashCommands query={slashQuery} onSelect={handleSlashSelect} />
+        )}
+
         {/* Mention autocomplete */}
         {mentionQuery !== null && (
           <MentionAutocomplete query={mentionQuery} onSelect={handleMentionSelect} />

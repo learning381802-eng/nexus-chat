@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAppStore, useAuthStore } from '../../store'
 import { api } from '../../utils/api'
-import { Hash, Volume2, Plus, Settings, ChevronDown, ChevronRight, Lock, Mic, MicOff, Headphones, PhoneOff, UserPlus } from 'lucide-react'
+import { Hash, Volume2, Plus, ChevronDown, ChevronRight, Lock, Mic, MicOff, Headphones, UserPlus, Megaphone, Smile, Tag } from 'lucide-react'
 import toast from 'react-hot-toast'
 import UserPanel from './UserPanel'
 import CreateChannelModal from '../Modals/CreateChannelModal'
 import ServerSettingsModal from '../Modals/ServerSettingsModal'
 import InviteModal from '../Modals/InviteModal'
+import EmojiManager from '../Modals/EmojiManager'
+import RoleAssignment from '../Modals/RoleAssignment'
 import VoicePanel from '../Voice/VoicePanel'
 
 export default function ChannelSidebar() {
@@ -20,6 +22,8 @@ export default function ChannelSidebar() {
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
+  const [showEmojiManager, setShowEmojiManager] = useState(false)
+  const [showRoleAssign, setShowRoleAssign] = useState(false)
   const [hoveredChannel, setHoveredChannel] = useState(null)
 
   const isDms = !serverId || serverId === '@me'
@@ -138,9 +142,9 @@ export default function ChannelSidebar() {
                 className={`channel-link w-full ${channelId === ch.id ? 'active' : ''}`}
                 onClick={() => handleChannelClick(ch)}
               >
-                <Hash size={16} className="flex-shrink-0" />
+                {ch.type === 'announcement' ? <Megaphone size={15} className="flex-shrink-0" /> : ch.private ? <Lock size={15} className="flex-shrink-0" /> : <Hash size={15} className="flex-shrink-0" />}
                 <span className="truncate">{ch.name}</span>
-                {ch.nsfw && <Lock size={12} className="flex-shrink-0 opacity-50" />}
+                {ch.nsfw && <span className="text-xs px-1 rounded flex-shrink-0" style={{ background: 'rgba(248,113,113,0.15)', color: 'var(--text-danger)', fontSize: 10 }}>NSFW</span>}
               </button>
               {hoveredChannel === ch.id && server.ownerId === user.id && (
                 <button
@@ -183,15 +187,25 @@ export default function ChannelSidebar() {
       </div>
 
       {/* Invite + User panel */}
-      <div className="flex-shrink-0">
-        <button
-          onClick={() => setShowInvite(true)}
-          className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-opacity-10 transition-colors"
-          style={{ color: 'var(--interactive-normal)' }}
-        >
-          <UserPlus size={16} />
-          <span>Invite People</span>
-        </button>
+      <div className="flex-shrink-0 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center gap-1 px-2 py-1.5">
+          <button onClick={() => setShowInvite(true)}
+            className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors hover:bg-white hover:bg-opacity-5"
+            style={{ color: 'var(--interactive-normal)' }}>
+            <UserPlus size={15} />
+            <span>Invite</span>
+          </button>
+          <button onClick={() => setShowEmojiManager(true)}
+            className="p-1.5 rounded-lg transition-colors hover:bg-white hover:bg-opacity-5"
+            style={{ color: 'var(--interactive-normal)' }} title="Custom Emoji">
+            <Smile size={15} />
+          </button>
+          <button onClick={() => setShowRoleAssign(true)}
+            className="p-1.5 rounded-lg transition-colors hover:bg-white hover:bg-opacity-5"
+            style={{ color: 'var(--interactive-normal)' }} title="Roles">
+            <Tag size={15} />
+          </button>
+        </div>
         <UserPanel />
       </div>
 
@@ -204,6 +218,8 @@ export default function ChannelSidebar() {
       )}
       {showServerSettings && <ServerSettingsModal server={server} onClose={() => setShowServerSettings(false)} />}
       {showInvite && <InviteModal serverId={activeServerId} onClose={() => setShowInvite(false)} />}
+      {showEmojiManager && <EmojiManager serverId={activeServerId} onClose={() => setShowEmojiManager(false)} />}
+      {showRoleAssign && <RoleAssignment serverId={activeServerId} onClose={() => setShowRoleAssign(false)} />}
     </div>
   )
 }

@@ -3,6 +3,8 @@ import { api } from '../../utils/api'
 import { useAppStore } from '../../store'
 import { X, Hash, Volume2, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ServerEmojiModal from './ServerEmojiModal'
+import ServerRulesModal from './ServerRulesModal'
 
 function ModalBase({ title, onClose, children, width = 440 }) {
   return (
@@ -150,6 +152,8 @@ export function ServerSettingsModal({ server, onClose }) {
   const [name, setName] = useState(server.name)
   const [description, setDescription] = useState(server.description || '')
   const [saving, setSaving] = useState(false)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [showRules, setShowRules] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -173,30 +177,46 @@ export function ServerSettingsModal({ server, onClose }) {
   }
 
   return (
-    <ModalBase title="Server Settings" onClose={onClose} width={520}>
-      <div className="px-6 pb-6 space-y-4">
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Server Name</label>
-          <input value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 rounded text-sm outline-none" style={{ background: 'var(--bg-primary)', color: 'var(--text-normal)' }} />
-        </div>
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Description</label>
-          <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-            className="w-full px-3 py-2 rounded text-sm outline-none resize-none" style={{ background: 'var(--bg-primary)', color: 'var(--text-normal)' }} />
-        </div>
-        <div className="flex gap-3 justify-between pt-2">
-          <button onClick={handleDelete} className="px-4 py-2 rounded text-sm font-medium text-white" style={{ background: '#ED4245' }}>
-            Delete Server
-          </button>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 rounded text-sm" style={{ color: 'var(--text-muted)' }}>Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded text-sm font-medium text-white" style={{ background: '#5865F2' }}>
-              {saving ? 'Saving...' : 'Save Changes'}
+    <>
+      <ModalBase title="Server Settings" onClose={onClose} width={520}>
+        <div className="px-6 pb-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Server Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} className="input-base" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Description</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="input-base resize-none" />
+          </div>
+
+          {/* Quick actions */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button onClick={() => setShowEmoji(true)} className="flex items-center gap-2 p-3 rounded-xl transition-colors text-sm font-medium"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', color: 'var(--interactive-normal)' }}>
+              <span>😄</span> Custom Emoji
+            </button>
+            <button onClick={() => setShowRules(true)} className="flex items-center gap-2 p-3 rounded-xl transition-colors text-sm font-medium"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', color: 'var(--interactive-normal)' }}>
+              <span>📋</span> Server Rules
             </button>
           </div>
+
+          <div className="flex gap-3 justify-between pt-2">
+            <button onClick={handleDelete} className="btn-primary text-sm" style={{ background: 'var(--text-danger)' }}>
+              Delete Server
+            </button>
+            <div className="flex gap-2">
+              <button onClick={onClose} className="btn-ghost text-sm">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </ModalBase>
+      </ModalBase>
+      {showEmoji && <ServerEmojiModal server={server} onClose={() => setShowEmoji(false)} />}
+      {showRules && <ServerRulesModal server={server} onClose={() => setShowRules(false)} />}
+    </>
   )
 }
 
