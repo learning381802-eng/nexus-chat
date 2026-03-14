@@ -4,7 +4,7 @@ import { api } from '../../utils/api'
 import {
   X, Settings, Users, Shield, Hash, Volume2, Plus, Trash2,
   ChevronRight, Save, AlertTriangle, Crown, Edit2, Check,
-  Eye, EyeOff, Lock, Megaphone, Tag, BarChart2, UserMinus, Ban, Flag
+  Eye, EyeOff, Lock, Megaphone, Tag, BarChart2, UserMinus, Ban
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -35,7 +35,7 @@ function Toggle({ on, onChange }) {
 
 export default function ServerSettingsModal({ server, onClose }) {
   const { user } = useAuthStore()
-  const { updateServer, removeServer, roles, setRoles, members, channels, setChannels, activeServerId, reports = [], updateReport, removeReport } = useAppStore()
+  const { updateServer, removeServer, roles, setRoles, members, channels, setChannels, activeServerId } = useAppStore()
   const [activeTab, setActiveTab] = useState('overview')
   const [name, setName] = useState(server.name)
   const [description, setDescription] = useState(server.description || '')
@@ -57,7 +57,6 @@ export default function ServerSettingsModal({ server, onClose }) {
     { id: 'members', label: 'Members', icon: Users },
     { id: 'channels', label: 'Channels', icon: Hash },
     { id: 'bans', label: 'Bans', icon: Ban },
-    { id: 'reports', label: 'Reports', icon: Flag },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
   ]
 
@@ -398,72 +397,6 @@ export default function ServerSettingsModal({ server, onClose }) {
                         className="btn-ghost text-xs px-3 py-1.5">
                         Unban
                       </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Danger zone */}
-            {activeTab === 'reports' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{reports.length} total reports</p>
-                  <span className="text-xs px-2 py-1 rounded-full font-semibold"
-                    style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
-                    {reports.filter(r => r.status === 'pending').length} pending
-                  </span>
-                </div>
-                {reports.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Flag size={32} className="mx-auto mb-2 opacity-30" style={{ color: 'var(--text-muted)' }} />
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No reports submitted</p>
-                  </div>
-                ) : (
-                  reports.map(report => (
-                    <div key={report.id} className="rounded-xl p-4"
-                      style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm" style={{ color: 'var(--header-primary)' }}>
-                              {report.categoryLabel}
-                            </span>
-                            <span className="text-xs px-2 py-0.5 rounded-full"
-                              style={{
-                                background: report.status === 'pending' ? 'rgba(251,191,36,0.15)' : report.status === 'actioned' ? 'rgba(52,211,153,0.15)' : 'var(--bg-accent)',
-                                color: report.status === 'pending' ? '#fbbf24' : report.status === 'actioned' ? '#34d399' : 'var(--text-muted)'
-                              }}>
-                              {report.status}
-                            </span>
-                          </div>
-                          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                            Reported {report.type} by <strong style={{ color: 'var(--text-normal)' }}>{report.targetUser?.displayName}</strong>
-                          </p>
-                          {report.targetContent && (
-                            <p className="text-xs p-2 rounded-lg truncate" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
-                              "{report.targetContent}"
-                            </p>
-                          )}
-                          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                            By {report.reportedBy?.displayName}
-                          </p>
-                        </div>
-                        {report.status === 'pending' && (
-                          <div className="flex gap-1 flex-shrink-0">
-                            <button onClick={() => updateReport(report.id, { status: 'actioned' })}
-                              className="px-2 py-1 rounded-lg text-xs font-semibold transition-colors"
-                              style={{ background: 'rgba(248,113,113,0.15)', color: 'var(--text-danger)' }}>
-                              Action
-                            </button>
-                            <button onClick={() => updateReport(report.id, { status: 'dismissed' })}
-                              className="px-2 py-1 rounded-lg text-xs transition-colors"
-                              style={{ background: 'var(--bg-accent)', color: 'var(--text-muted)' }}>
-                              Dismiss
-                            </button>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   ))
                 )}
